@@ -17,6 +17,8 @@ from sklearn.preprocessing import (
     StandardScaler,
     MinMaxScaler,
 )
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
 
 
 #====================================================================#
@@ -172,6 +174,101 @@ class CustomOutlierRemoverInterquartile(BaseEstimator, TransformerMixin):
 #====================================================================#
 #                              Functions                             #
 #====================================================================#
+
+
+def evaluate_kmeans_clustering(data, search_range=range(2, 30), random_state=42):
+    """
+    Evaluates KMeans clustering using Silhouette, Davies-Bouldin, and Calinski-Harabasz scores.
+
+    Parameters:
+    - data: array-like, shape (n_samples, n_features)
+        Data to cluster.
+    - search_range: range, optional (default=range(2, 30))
+        Range of cluster numbers to evaluate.
+    - random_state: int, optional (default=42)
+        Random state for reproducibility.
+
+    Returns:
+    - results: dict
+        A dictionary containing scores and optimal cluster numbers for each metric.
+    - plots: matplotlib figures
+        Plots of scores vs. number of clusters for each metric.
+    """
+    # Initialize lists to store evaluation scores
+    sil_scores = []
+    db_scores = []
+    ch_scores = []
+
+    # Iterate through different numbers of clusters
+    for k in search_range:
+        k_means = KMeans(n_clusters=k, random_state=random_state).fit(data)
+        labels = k_means.labels_
+
+        # Calculate scores
+        sil_scores.append(silhouette_score(data, labels))
+        db_scores.append(davies_bouldin_score(data, labels))
+        ch_scores.append(calinski_harabasz_score(data, labels))
+
+    # Find optimal clusters for each metric
+    max_sil_score = max(sil_scores)
+    optimal_clusters_sil = search_range[np.argmax(sil_scores)]
+
+    min_db_score = min(db_scores)
+    optimal_clusters_db = search_range[np.argmin(db_scores)]
+
+    max_ch_score = max(ch_scores)
+    optimal_clusters_ch = search_range[np.argmax(ch_scores)]
+
+    results = {
+        "silhouette": {
+            "max_score": max_sil_score,
+            "optimal_clusters": optimal_clusters_sil
+        },
+        "davies_bouldin": {
+            "min_score": min_db_score,
+            "optimal_clusters": optimal_clusters_db
+        },
+        "calinski_harabasz": {
+            "max_score": max_ch_score,
+            "optimal_clusters": optimal_clusters_ch
+        }
+    }
+
+    print(f"The highest silhouette score: {max_sil_score} (Optimal clusters: {optimal_clusters_sil})")
+    print(f"The lowest Davies-Bouldin score: {min_db_score} (Optimal clusters: {optimal_clusters_db})")
+    print(f"The highest Calinski-Harabasz score: {max_ch_score} (Optimal clusters: {optimal_clusters_ch})")
+
+    # Plot the scores
+    plt.figure(figsize=(12, 15))
+
+    # Subplot for Silhouette Score
+    plt.subplot(3, 1, 1)
+    plt.plot(search_range, sil_scores, marker='o', linestyle='-', color='b')
+    plt.title('Silhouette Score vs. Number of Clusters')
+    plt.xlabel('Number of Clusters')
+    plt.ylabel('Silhouette Score')
+    plt.grid(True)
+
+    # Subplot for Davies-Bouldin Score
+    plt.subplot(3, 1, 2)
+    plt.plot(search_range, db_scores, marker='o', linestyle='-', color='r')
+    plt.title('Davies-Bouldin Score vs. Number of Clusters')
+    plt.xlabel('Number of Clusters')
+    plt.ylabel('Davies-Bouldin Score')
+    plt.grid(True)
+
+    # Subplot for Calinski-Harabasz Score
+    plt.subplot(3, 1, 3)
+    plt.plot(search_range, ch_scores, marker='o', linestyle='-', color='g')
+    plt.title('Calinski-Harabasz Score vs. Number of Clusters')
+    plt.xlabel('Number of Clusters')
+    plt.ylabel('Calinski-Harabasz Score')
+    plt.grid(True)
+
+    plt.tight_layout()
+    plt.show()
+
+    return results
 
 
 def show_pca_weights(pca_df: pd.DataFrame, pca_3d: PCA, df_preprocessed: pd.DataFrame):
